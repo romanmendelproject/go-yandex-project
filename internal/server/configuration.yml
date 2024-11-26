@@ -1,0 +1,8 @@
+#App configurations
+app:
+  max_cpu: 4
+  log_level: "debug"
+db:
+  db_ip: ":8080"
+  db_dsn: "postgres://username:userpassword@localhost:5432/dbname"
+  key: ""
