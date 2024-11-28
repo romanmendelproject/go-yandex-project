@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"github.com/go-chi/chi"
@@ -10,11 +11,13 @@ import (
 	"github.com/romanmendelproject/go-yandex-project/internal/server/user"
 	"github.com/romanmendelproject/go-yandex-project/internal/types"
 	log "github.com/sirupsen/logrus"
+
+	"github.com/romanmendelproject/go-yandex-project/internal/server/jwt"
 )
 
 type Storage interface {
-	GetCred(ctx context.Context, name string) (*types.CredType, error)
-	SetCred(ctx context.Context, value types.CredType) error
+	GetCred(ctx context.Context, name string, userID int) (*types.CredType, error)
+	SetCred(ctx context.Context, value types.CredType, userID int) error
 	GetText(ctx context.Context, name string) (*types.TextType, error)
 	SetText(ctx context.Context, value types.TextType) error
 	GetByte(ctx context.Context, name string) (*types.ByteType, error)
@@ -50,13 +53,15 @@ func customError(res http.ResponseWriter, err string, status int) {
 type ServiceHandlers struct {
 	cfg     config.Config
 	storage Storage
+	token   *jwt.JWT
 	user    *user.User
 }
 
-func NewHandlers(cfg config.Config, storage Storage, userData *user.User) *ServiceHandlers {
+func NewHandlers(cfg config.Config, storage Storage, token *jwt.JWT, userData *user.User) *ServiceHandlers {
 	return &ServiceHandlers{
 		cfg:     cfg,
 		storage: storage,
+		token:   token,
 		user:    userData,
 	}
 }
@@ -64,9 +69,15 @@ func NewHandlers(cfg config.Config, storage Storage, userData *user.User) *Servi
 func (h *ServiceHandlers) GetCredValue(res http.ResponseWriter, req *http.Request) {
 	name := chi.URLParam(req, "name")
 
-	value, err := h.storage.GetCred(req.Context(), name)
+	userID, err := h.getUserID(req)
 	if err != nil {
-		handleError(res, err, http.StatusNotFound)
+		handleError(res, err, http.StatusUnauthorized)
+		return
+	}
+
+	value, err := h.storage.GetCred(req.Context(), name, userID)
+	if err != nil {
+		customError(res, "there is no record named test", http.StatusNotFound)
 		return
 	}
 	var requestData types.CredType
@@ -90,6 +101,13 @@ func (h *ServiceHandlers) GetCredValue(res http.ResponseWriter, req *http.Reques
 func (h *ServiceHandlers) SetCredValue(res http.ResponseWriter, req *http.Request) {
 	ctx := req.Context()
 	var request types.CredType
+
+	userID, err := h.getUserID(req)
+	if err != nil {
+		handleError(res, err, http.StatusUnauthorized)
+		return
+	}
+
 	if err := json.NewDecoder(req.Body).Decode(&request); err != nil {
 		res.Write([]byte(err.Error()))
 		handleError(res, err, http.StatusBadRequest)
@@ -97,7 +115,7 @@ func (h *ServiceHandlers) SetCredValue(res http.ResponseWriter, req *http.Reques
 	}
 	defer req.Body.Close()
 
-	err := h.storage.SetCred(ctx, request)
+	err = h.storage.SetCred(ctx, request, userID)
 	if err != nil {
 		res.Write([]byte(err.Error()))
 		handleError(res, err, http.StatusBadRequest)
@@ -322,4 +340,17 @@ func (h *ServiceHandlers) Ping(res http.ResponseWriter, req *http.Request) {
 	}
 
 	res.WriteHeader(http.StatusOK)
+}
+
+func (h *ServiceHandlers) getUserID(req *http.Request) (int, error) {
+	reqToken, err := req.Cookie("Token")
+	if err != nil {
+		return 0, fmt.Errorf("error getting token", "error", err)
+	}
+
+	userID, err := h.token.ParseToken(reqToken.Value)
+	if err != nil || userID == 0 {
+		return 0, fmt.Errorf("Unauthorized", "error", err)
+	}
+	return userID, nil
 }

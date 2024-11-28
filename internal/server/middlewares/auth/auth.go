@@ -14,14 +14,14 @@ func IsAuthorized(token *jwt.JWT) func(http.Handler) http.Handler {
 			reqToken, err := r.Cookie("Token")
 			if err != nil {
 				log.Error("error getting token", "error", err)
-				w.WriteHeader(http.StatusUnauthorized)
+				http.Error(w, err.Error(), http.StatusUnauthorized)
 
 				return
 			}
 
 			userID, err := token.ParseToken(reqToken.Value)
 			if err != nil || userID == 0 {
-				w.WriteHeader(http.StatusUnauthorized)
+				http.Error(w, err.Error(), http.StatusUnauthorized)
 
 				return
 			}

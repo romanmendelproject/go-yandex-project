@@ -1,6 +1,9 @@
 package sender
 
 import (
+	"net/http"
+	"os"
+
 	"github.com/romanmendelproject/go-yandex-project/internal/client/config"
 	"github.com/romanmendelproject/go-yandex-project/internal/client/flags"
 )
@@ -36,5 +39,21 @@ func (sender *Sender) GetData() error {
 			return err
 		}
 	}
+	return nil
+}
+
+func (sender *Sender) SetToken(req *http.Request) error {
+	token, err := os.ReadFile("/tmp/data")
+	if err != nil {
+		return err
+	}
+
+	cookie := &http.Cookie{
+		Name:   "Token",
+		Value:  string(token),
+		MaxAge: 300,
+	}
+	req.AddCookie(cookie)
+
 	return nil
 }

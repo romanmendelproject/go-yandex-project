@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"os"
 
 	"github.com/romanmendelproject/go-yandex-project/internal/types"
 	log "github.com/sirupsen/logrus"
@@ -21,14 +20,11 @@ func (sender *Sender) getRequest(name string) (*http.Response, error) {
 		log.Error(err)
 	}
 
-	token, err := os.ReadFile("/tmp/data")
-
-	cookie := &http.Cookie{
-		Name:   "Token",
-		Value:  string(token),
-		MaxAge: 300,
+	err = sender.SetToken(req)
+	if err != nil {
+		return nil, err
 	}
-	req.AddCookie(cookie)
+
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err

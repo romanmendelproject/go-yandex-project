@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/AlexanderGrom/componenta/crypt"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/romanmendelproject/go-yandex-project/internal/types"
@@ -44,7 +45,7 @@ func (pg *PostgresStorage) Close() {
 }
 
 // GetCred читает данные формата CredType из БД
-func (pg *PostgresStorage) GetCred(ctx context.Context, name string) (*types.CredType, error) {
+func (pg *PostgresStorage) GetCred(ctx context.Context, name string, userID int) (*types.CredType, error) {
 	var (
 		values   types.CredType
 		username sql.NullString
@@ -52,7 +53,7 @@ func (pg *PostgresStorage) GetCred(ctx context.Context, name string) (*types.Cre
 		meta     string
 	)
 
-	if err := pg.db.QueryRow(ctx, "SELECT username, password, meta FROM cred WHERE name = $1", name).Scan(&username, &password, &meta); err != nil {
+	if err := pg.db.QueryRow(ctx, "SELECT username, password, meta FROM cred WHERE name = $1 AND user_id = $2 ", name, userID).Scan(&username, &password, &meta); err != nil {
 		return nil, err
 	}
 
@@ -60,15 +61,21 @@ func (pg *PostgresStorage) GetCred(ctx context.Context, name string) (*types.Cre
 		return nil, fmt.Errorf("unexpected type of cred")
 	}
 
+	passwordString, err := crypt.Decrypt(password.String, "Secret_Key")
+
+	if err != nil {
+		log.Fatalln("Decrypt:", err)
+	}
+
 	values.Username = username.String
-	values.Password = password.String
+	values.Password = passwordString
 	values.Meta = meta
 
 	return &values, nil
 }
 
 // SetCred записывает данные формата CredType в БД
-func (pg *PostgresStorage) SetCred(ctx context.Context, value types.CredType) error {
+func (pg *PostgresStorage) SetCred(ctx context.Context, value types.CredType, userID int) error {
 	var (
 		username sql.NullString
 		password sql.NullString
@@ -84,12 +91,18 @@ func (pg *PostgresStorage) SetCred(ctx context.Context, value types.CredType) er
 		}
 	}()
 
+	passwordHash, err := crypt.Encrypt(value.Password, "Secret_Key")
+
+	if err != nil {
+		log.Fatalln("Encrypt:", err)
+	}
+
 	// Check if data exists
-	if err := tx.QueryRow(ctx, "SELECT username, password, meta FROM cred WHERE name = $1", value.Name).Scan(&username, &password, &meta); err != nil {
+	if err := tx.QueryRow(ctx, "SELECT username, password, meta FROM cred WHERE name = $1 AND user_id = $2", value.Name, userID).Scan(&username, &password, &meta); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			// Insert new metric if not exists
 			log.Error(value.Name)
-			if _, err := tx.Exec(ctx, `INSERT INTO cred (name, username, password, meta) VALUES ($1, $2, $3, $4)`, value.Name, value.Username, value.Password, value.Meta); err != nil {
+			if _, err := tx.Exec(ctx, `INSERT INTO cred (name, username, password, meta, user_id) VALUES ($1, $2, $3, $4, $5)`, value.Name, value.Username, passwordHash, value.Meta, userID); err != nil {
 				log.Error(err)
 				return err
 			}
@@ -101,7 +114,7 @@ func (pg *PostgresStorage) SetCred(ctx context.Context, value types.CredType) er
 	}
 
 	// Update data if exists
-	if _, err := tx.Exec(ctx, `UPDATE cred SET username = $2, password = $3, meta = $4 WHERE name = $1`, value.Name, value.Username, value.Password, value.Meta); err != nil {
+	if _, err := tx.Exec(ctx, `UPDATE cred SET username = $2, password = $3, meta = $4 WHERE name = $1`, value.Name, value.Username, passwordHash, value.Meta); err != nil {
 		log.Error(err)
 		return err
 	}
@@ -240,7 +253,7 @@ func (pg *PostgresStorage) GetCard(ctx context.Context, name string) (*types.Car
 	}
 
 	if !data.Valid {
-		return nil, fmt.Errorf("unexpected type of text")
+		return nil, fmt.Errorf("unexpected type of cred")
 	}
 
 	values.Data = data.Int64

@@ -34,7 +34,7 @@ func StartServer() {
 
 	token := jwt.NewJWT()
 	userData := user.NewUserAuth(database, token)
-	handler = handlers.NewHandlers(cfg, database, userData)
+	handler = handlers.NewHandlers(cfg, database, token, userData)
 
 	r := router.NewRouter(handler, cfg, token)
 	func() {

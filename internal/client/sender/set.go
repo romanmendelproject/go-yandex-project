@@ -41,6 +41,11 @@ func (sender *Sender) SetCred(name, username, password, meta string) error {
 		log.Error(err)
 	}
 
+	err = sender.SetToken(req)
+	if err != nil {
+		return err
+	}
+
 	req.Header.Add("content-type", "application/json")
 	req.Header.Set("Content-Encoding", "gzip")
 	req.Header.Set("Accept-Encoding", "gzip")

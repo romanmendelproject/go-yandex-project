@@ -18,7 +18,7 @@ func upInitTable(ctx context.Context, tx *sql.Tx) error {
 
 	query := `
 		CREATE TABLE IF NOT EXISTS users (
-		    id SERIAL,
+		    id SERIAL PRIMARY KEY,
 		    login varchar(255) NOT NULL,
 		    password varchar(255) NOT NULL,
 		    current FLOAT DEFAULT 0,
@@ -28,26 +28,30 @@ func upInitTable(ctx context.Context, tx *sql.Tx) error {
 		CREATE TABLE IF NOT EXISTS cred (
 			name CHAR(30),
 			username CHAR(30),
-			password CHAR(30),
-			meta CHAR(30)
+			password BYTEA,
+			meta CHAR(30),
+			user_id integer REFERENCES users
 		);
 
 		CREATE TABLE IF NOT EXISTS text (
 			name CHAR(30),
 			data CHAR(500),
-			meta CHAR(30)
+			meta CHAR(30),
+			user_id integer REFERENCES users
 		);
 
 		CREATE TABLE IF NOT EXISTS byte (
 			name CHAR(30),
 			data BYTEA,
-			meta CHAR(30)
+			meta CHAR(30),
+			user_id integer REFERENCES users
 		);
 
 		CREATE TABLE IF NOT EXISTS card (
 			name CHAR(30),
 			data BIGINT,
-			meta CHAR(30)
+			meta CHAR(30),
+			user_id integer REFERENCES users
 		);
 	`
 

@@ -6,6 +6,8 @@ import (
 	"github.com/romanmendelproject/go-yandex-project/internal/client/config"
 	"github.com/romanmendelproject/go-yandex-project/internal/client/flags"
 	"github.com/romanmendelproject/go-yandex-project/internal/client/sender"
+
+	log "github.com/sirupsen/logrus"
 )
 
 // ExecCommand запускает клиентскую программу
@@ -36,6 +38,6 @@ func ExecCommand() {
 
 func checkError(e error) {
 	if e != nil {
-		panic(e)
+		log.Error(e)
 	}
 }
