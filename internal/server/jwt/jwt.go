@@ -19,6 +19,7 @@ func NewJWT() *JWT {
 	return &JWT{}
 }
 
+// GenerateToken генерация нового токена
 func (j *JWT) GenerateToken(userID int) (string, error) {
 	claims := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"userID": userID,
@@ -36,6 +37,7 @@ func (j *JWT) GenerateToken(userID int) (string, error) {
 	return tokenString, nil
 }
 
+// ParseToken извлечение значения токена из строки
 func (j *JWT) ParseToken(tokenString string) (int, error) {
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {

@@ -1,7 +1,7 @@
 package logging
 
 import (
-	"github.com/romanmendelproject/practice-exporter/internal/config"
+	"github.com/romanmendelproject/go-yandex-project/internal/client/config"
 
 	log "github.com/sirupsen/logrus"
 )

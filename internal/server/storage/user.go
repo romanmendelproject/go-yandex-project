@@ -9,6 +9,7 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
+// Register запись в БД нового пользователя
 func (pg *PostgresStorage) Register(ctx context.Context, login, password string) (int, error) {
 	query := `INSERT INTO users (login, password) VALUES ($1, $2) RETURNING id;`
 	var id int
@@ -22,6 +23,7 @@ func (pg *PostgresStorage) Register(ctx context.Context, login, password string)
 	return id, nil
 }
 
+// Login получение из БД существующего пользователя
 func (pg *PostgresStorage) Login(ctx context.Context, login, password string) (int, error) {
 	query := `SELECT id FROM users WHERE login = $1 AND password = $2;`
 	var id int
@@ -35,6 +37,7 @@ func (pg *PostgresStorage) Login(ctx context.Context, login, password string) (i
 	return id, nil
 }
 
+// CheckLogin проверка наличия пользователя в БД
 func (pg *PostgresStorage) CheckLogin(ctx context.Context, login string) error {
 	var userID int
 

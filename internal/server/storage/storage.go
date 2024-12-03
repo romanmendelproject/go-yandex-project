@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strconv"
 	"sync"
 
 	"github.com/AlexanderGrom/componenta/crypt"
@@ -122,14 +123,14 @@ func (pg *PostgresStorage) SetCred(ctx context.Context, value types.CredType, us
 }
 
 // GetText читает данные формата TextType из БД
-func (pg *PostgresStorage) GetText(ctx context.Context, name string) (*types.TextType, error) {
+func (pg *PostgresStorage) GetText(ctx context.Context, name string, userID int) (*types.TextType, error) {
 	var (
 		values types.TextType
 		data   sql.NullString
 		meta   string
 	)
 
-	if err := pg.db.QueryRow(ctx, "SELECT data, meta FROM text WHERE name = $1", name).Scan(&data, &meta); err != nil {
+	if err := pg.db.QueryRow(ctx, "SELECT data, meta FROM text WHERE name = $1 AND user_id = $2 ", name, userID).Scan(&data, &meta); err != nil {
 		return nil, err
 	}
 
@@ -144,7 +145,7 @@ func (pg *PostgresStorage) GetText(ctx context.Context, name string) (*types.Tex
 }
 
 // SetText записывает данные формата TextType в БД
-func (pg *PostgresStorage) SetText(ctx context.Context, value types.TextType) error {
+func (pg *PostgresStorage) SetText(ctx context.Context, value types.TextType, userID int) error {
 	var (
 		data sql.NullString
 		meta string
@@ -159,11 +160,11 @@ func (pg *PostgresStorage) SetText(ctx context.Context, value types.TextType) er
 	}()
 
 	// Check if data exists
-	if err := tx.QueryRow(ctx, "SELECT data, meta FROM text WHERE name = $1", value.Name).Scan(&data, &meta); err != nil {
+	if err := tx.QueryRow(ctx, "SELECT data, meta FROM text WHERE name = $1 AND user_id = $2", value.Name, userID).Scan(&data, &meta); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			// Insert new metric if not exists
 			log.Error(value.Name)
-			if _, err := tx.Exec(ctx, `INSERT INTO text (name, data, meta) VALUES ($1, $2, $3)`, value.Name, value.Data, value.Meta); err != nil {
+			if _, err := tx.Exec(ctx, `INSERT INTO text (name, data, meta, user_id) VALUES ($1, $2, $3, $4)`, value.Name, value.Data, value.Meta, userID); err != nil {
 				log.Error(err)
 				return err
 			}
@@ -183,14 +184,14 @@ func (pg *PostgresStorage) SetText(ctx context.Context, value types.TextType) er
 }
 
 // GetByte читает данные формата ByteType из БД
-func (pg *PostgresStorage) GetByte(ctx context.Context, name string) (*types.ByteType, error) {
+func (pg *PostgresStorage) GetByte(ctx context.Context, name string, userID int) (*types.ByteType, error) {
 	var (
 		values types.ByteType
 		data   sql.RawBytes
 		meta   string
 	)
 
-	if err := pg.db.QueryRow(ctx, "SELECT data, meta FROM byte WHERE name = $1", name).Scan(&data, &meta); err != nil {
+	if err := pg.db.QueryRow(ctx, "SELECT data, meta FROM byte WHERE name = $1 AND user_id = $2 ", name, userID).Scan(&data, &meta); err != nil {
 		return nil, err
 	}
 
@@ -201,7 +202,7 @@ func (pg *PostgresStorage) GetByte(ctx context.Context, name string) (*types.Byt
 }
 
 // SetTByte записывает данные формата TextType в БД
-func (pg *PostgresStorage) SetByte(ctx context.Context, value types.ByteType) error {
+func (pg *PostgresStorage) SetByte(ctx context.Context, value types.ByteType, userID int) error {
 	var (
 		data sql.RawBytes
 		meta string
@@ -217,11 +218,11 @@ func (pg *PostgresStorage) SetByte(ctx context.Context, value types.ByteType) er
 	}()
 
 	// Check if data exists
-	if err := tx.QueryRow(ctx, "SELECT data, meta FROM byte WHERE name = $1", value.Name).Scan(&data, &meta); err != nil {
+	if err := tx.QueryRow(ctx, "SELECT data, meta FROM byte WHERE name = $1 AND user_id = $2", value.Name, userID).Scan(&data, &meta); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			// Insert new metric if not exists
 			log.Error(value.Name)
-			if _, err := tx.Exec(ctx, `INSERT INTO byte (name, data, meta) VALUES ($1, $2, $3)`, value.Name, value.Data, value.Meta); err != nil {
+			if _, err := tx.Exec(ctx, `INSERT INTO byte (name, data, meta, user_id) VALUES ($1, $2, $3, $4)`, value.Name, value.Data, value.Meta, userID); err != nil {
 				log.Error(err)
 				return err
 			}
@@ -241,14 +242,14 @@ func (pg *PostgresStorage) SetByte(ctx context.Context, value types.ByteType) er
 }
 
 // GetCard читает данные формата CardType из БД
-func (pg *PostgresStorage) GetCard(ctx context.Context, name string) (*types.CardType, error) {
+func (pg *PostgresStorage) GetCard(ctx context.Context, name string, userID int) (*types.CardType, error) {
 	var (
 		values types.CardType
-		data   sql.NullInt64
+		data   sql.NullString
 		meta   string
 	)
 
-	if err := pg.db.QueryRow(ctx, "SELECT data, meta FROM text WHERE name = $1", name).Scan(&data, &meta); err != nil {
+	if err := pg.db.QueryRow(ctx, "SELECT data, meta FROM card WHERE name = $1 AND user_id = $2 ", name, userID).Scan(&data, &meta); err != nil {
 		return nil, err
 	}
 
@@ -256,14 +257,25 @@ func (pg *PostgresStorage) GetCard(ctx context.Context, name string) (*types.Car
 		return nil, fmt.Errorf("unexpected type of cred")
 	}
 
-	values.Data = data.Int64
+	dataString, err := crypt.Decrypt(data.String, "Secret_Key")
+
+	if err != nil {
+		log.Fatalln("Decrypt:", err)
+	}
+
+	dataInt, err := strconv.ParseInt(dataString, 10, 64)
+	if err != nil {
+		panic(err)
+	}
+
+	values.Data = dataInt
 	values.Meta = meta
 
 	return &values, nil
 }
 
 // SetCard записывает данные формата CardType в БД
-func (pg *PostgresStorage) SetCard(ctx context.Context, value types.CardType) error {
+func (pg *PostgresStorage) SetCard(ctx context.Context, value types.CardType, userID int) error {
 	var (
 		data sql.NullInt64
 		meta string
@@ -278,12 +290,18 @@ func (pg *PostgresStorage) SetCard(ctx context.Context, value types.CardType) er
 		}
 	}()
 
+	dataHash, err := crypt.Encrypt(strconv.FormatInt(value.Data, 10), "Secret_Key")
+
+	if err != nil {
+		log.Fatalln("Encrypt:", err)
+	}
+
 	// Check if data exists
-	if err := tx.QueryRow(ctx, "SELECT data, meta FROM text WHERE name = $1", value.Name).Scan(&data, &meta); err != nil {
+	if err := tx.QueryRow(ctx, "SELECT data, meta FROM card WHERE name = $1 AND user_id = $2", value.Name, userID).Scan(&data, &meta); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			// Insert new metric if not exists
 			log.Error(value.Name)
-			if _, err := tx.Exec(ctx, `INSERT INTO text (name, data, meta) VALUES ($1, $2, $3)`, value.Name, value.Data, value.Meta); err != nil {
+			if _, err := tx.Exec(ctx, `INSERT INTO card (name, data, meta, user_id) VALUES ($1, $2, $3, $4)`, value.Name, dataHash, value.Meta, userID); err != nil {
 				log.Error(err)
 				return err
 			}
@@ -295,7 +313,7 @@ func (pg *PostgresStorage) SetCard(ctx context.Context, value types.CardType) er
 	}
 
 	// Update data if exists
-	if _, err := tx.Exec(ctx, `UPDATE text SET data = $2, meta = $3 WHERE name = $1`, value.Name, value.Data, value.Meta); err != nil {
+	if _, err := tx.Exec(ctx, `UPDATE card SET data = $2, meta = $3 WHERE name = $1`, value.Name, dataHash, value.Meta); err != nil {
 		log.Error(err)
 		return err
 	}

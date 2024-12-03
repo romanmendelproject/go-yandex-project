@@ -49,7 +49,7 @@ func upInitTable(ctx context.Context, tx *sql.Tx) error {
 
 		CREATE TABLE IF NOT EXISTS card (
 			name CHAR(30),
-			data BIGINT,
+			data BYTEA,
 			meta CHAR(30),
 			user_id integer REFERENCES users
 		);

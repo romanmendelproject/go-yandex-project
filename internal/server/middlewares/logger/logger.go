@@ -9,6 +9,7 @@ import (
 
 var Log = logrus.New()
 
+// SetLogLevel устанавливает уровень логирования программы
 func SetLogLevel(level string) {
 	switch level {
 	case "debug":
@@ -25,6 +26,7 @@ func SetLogLevel(level string) {
 	}
 }
 
+// ResponseWriter определяет методы для записи в лог
 type ResponseWriter interface {
 	Header() http.Header
 	Write([]byte) (int, error)
@@ -43,17 +45,20 @@ type (
 	}
 )
 
+// Write записывает тело запроса
 func (r *loggingResponseWriter) Write(b []byte) (int, error) {
 	size, err := r.ResponseWriter.Write(b)
 	r.responseData.size += size
 	return size, err
 }
 
+// WriteHeader записывает заголовок запроса
 func (r *loggingResponseWriter) WriteHeader(statusCode int) {
 	r.ResponseWriter.WriteHeader(statusCode)
 	r.responseData.status = statusCode
 }
 
+// RequestLogger выполняет логирование запросов
 func RequestLogger(h http.Handler) http.Handler {
 	logFn := func(res http.ResponseWriter, req *http.Request) {
 		start := time.Now()

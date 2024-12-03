@@ -14,9 +14,8 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-func (sender *Sender) SetCred(name, username, password, meta string) error {
+func (s *Sender) SetCred(name, username, password, meta string) error {
 	var requestData types.CredType
-	var requestBody bytes.Buffer
 
 	requestData.Name = name
 	requestData.Username = username
@@ -28,7 +27,84 @@ func (sender *Sender) SetCred(name, username, password, meta string) error {
 		return err
 	}
 
-	url := fmt.Sprintf("http://%s/api/user/update/cred/", sender.cfg.DB.DBIP)
+	url := fmt.Sprintf("http://%s/api/user/update/cred/", s.cfg.DB.DBIP)
+
+	err = s.sendData(url, body)
+	if err != nil {
+		return err
+	}
+
+	return err
+}
+
+func (s *Sender) SetText(name, data, meta string) error {
+	var requestData types.TextType
+
+	requestData.Name = name
+	requestData.Data = data
+	requestData.Meta = meta
+
+	body, err := json.Marshal(requestData)
+	if err != nil {
+		return err
+	}
+
+	url := fmt.Sprintf("http://%s/api/user/update/text/", s.cfg.DB.DBIP)
+
+	s.sendData(url, body)
+	if err != nil {
+		return err
+	}
+
+	return err
+}
+
+func (s *Sender) SetByte(name string, data []byte, meta string) error {
+	var requestData types.ByteType
+
+	requestData.Name = name
+	requestData.Data = data
+	requestData.Meta = meta
+
+	body, err := json.Marshal(requestData)
+	if err != nil {
+		return err
+	}
+
+	url := fmt.Sprintf("http://%s/api/user/update/byte/", s.cfg.DB.DBIP)
+
+	s.sendData(url, body)
+	if err != nil {
+		return err
+	}
+
+	return err
+}
+
+func (s *Sender) SetCard(name string, data int64, meta string) error {
+	var requestData types.CardType
+
+	requestData.Name = name
+	requestData.Data = data
+	requestData.Meta = meta
+
+	body, err := json.Marshal(requestData)
+	if err != nil {
+		return err
+	}
+
+	url := fmt.Sprintf("http://%s/api/user/update/card/", s.cfg.DB.DBIP)
+
+	s.sendData(url, body)
+	if err != nil {
+		return err
+	}
+
+	return err
+}
+
+func (sender *Sender) sendData(url string, body []byte) error {
+	var requestBody bytes.Buffer
 
 	gz := gzip.NewWriter(&requestBody)
 	gz.Write(body)
@@ -66,9 +142,10 @@ func (sender *Sender) SetCred(name, username, password, meta string) error {
 		if resp.StatusCode != 200 {
 			return fmt.Errorf("not expected status code: %d", resp.StatusCode)
 		} else {
+			println("Data saved successfully")
 			return nil
 		}
 	}
 
-	return err
+	return nil
 }

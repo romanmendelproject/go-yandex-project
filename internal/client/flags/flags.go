@@ -11,6 +11,7 @@ var (
 	Name     string
 	Username string
 	Password string
+	Data     string
 	Meta     string
 )
 
@@ -21,6 +22,7 @@ func ParseFlags() {
 	flag.StringVar(&Name, "n", "", "Name")
 	flag.StringVar(&Username, "u", "", "Username")
 	flag.StringVar(&Password, "p", "", "Password")
+	flag.StringVar(&Data, "d", "", "Data")
 	flag.StringVar(&Meta, "m", "", "Meta")
 	flag.Parse()
 }

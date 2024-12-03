@@ -12,6 +12,7 @@ import (
 	"github.com/romanmendelproject/go-yandex-project/internal/server/middlewares/logger"
 )
 
+// NewRouter определяет эндпоинты для сервера
 func NewRouter(handler *handlers.ServiceHandlers, cfg config.Config, token *jwt.JWT) *chi.Mux {
 	r := chi.NewRouter()
 	r.Use(logger.RequestLogger)

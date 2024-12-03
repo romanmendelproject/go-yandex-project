@@ -10,6 +10,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+// HashMiddleware декодирует запросы к серверу
 func HashMiddleware(key string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		logFn := func(res http.ResponseWriter, req *http.Request) {

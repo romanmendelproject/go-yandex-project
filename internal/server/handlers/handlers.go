@@ -15,15 +15,16 @@ import (
 	"github.com/romanmendelproject/go-yandex-project/internal/server/jwt"
 )
 
+// Storage описывает поведение хранилища
 type Storage interface {
 	GetCred(ctx context.Context, name string, userID int) (*types.CredType, error)
 	SetCred(ctx context.Context, value types.CredType, userID int) error
-	GetText(ctx context.Context, name string) (*types.TextType, error)
-	SetText(ctx context.Context, value types.TextType) error
-	GetByte(ctx context.Context, name string) (*types.ByteType, error)
-	SetByte(ctx context.Context, value types.ByteType) error
-	GetCard(ctx context.Context, name string) (*types.CardType, error)
-	SetCard(ctx context.Context, value types.CardType) error
+	GetText(ctx context.Context, name string, userID int) (*types.TextType, error)
+	SetText(ctx context.Context, value types.TextType, userID int) error
+	GetByte(ctx context.Context, name string, userID int) (*types.ByteType, error)
+	SetByte(ctx context.Context, value types.ByteType, userID int) error
+	GetCard(ctx context.Context, name string, userID int) (*types.CardType, error)
+	SetCard(ctx context.Context, value types.CardType, userID int) error
 	Ping(ctx context.Context) error
 }
 
@@ -32,10 +33,12 @@ type RegisterReq struct {
 	Password string `json:"password"`
 }
 
+// HandleBadRequest обрабатывает запросы типа BadRequest
 func HandleBadRequest(res http.ResponseWriter, req *http.Request) {
 	res.WriteHeader(http.StatusBadRequest)
 }
 
+// HandleStatusNotFound обрабатывает запросы типа StatusNotFound
 func HandleStatusNotFound(res http.ResponseWriter, req *http.Request) {
 	res.WriteHeader(http.StatusNotFound)
 }
@@ -57,6 +60,7 @@ type ServiceHandlers struct {
 	user    *user.User
 }
 
+// NewHandlers создает объект обработчика запросов
 func NewHandlers(cfg config.Config, storage Storage, token *jwt.JWT, userData *user.User) *ServiceHandlers {
 	return &ServiceHandlers{
 		cfg:     cfg,
@@ -66,6 +70,7 @@ func NewHandlers(cfg config.Config, storage Storage, token *jwt.JWT, userData *u
 	}
 }
 
+// GetCredValue обрабатывает запросы на получение значений типа Cred
 func (h *ServiceHandlers) GetCredValue(res http.ResponseWriter, req *http.Request) {
 	name := chi.URLParam(req, "name")
 
@@ -98,6 +103,7 @@ func (h *ServiceHandlers) GetCredValue(res http.ResponseWriter, req *http.Reques
 	res.Write(resp)
 }
 
+// SetCredValue обрабатывает запросы на обновление значений типа Cred
 func (h *ServiceHandlers) SetCredValue(res http.ResponseWriter, req *http.Request) {
 	ctx := req.Context()
 	var request types.CredType
@@ -125,10 +131,17 @@ func (h *ServiceHandlers) SetCredValue(res http.ResponseWriter, req *http.Reques
 	res.WriteHeader(http.StatusOK)
 }
 
+// GetTextValue обрабатывает запросы на получение значений типа Text
 func (h *ServiceHandlers) GetTextValue(res http.ResponseWriter, req *http.Request) {
 	name := chi.URLParam(req, "name")
 
-	value, err := h.storage.GetText(req.Context(), name)
+	userID, err := h.getUserID(req)
+	if err != nil {
+		handleError(res, err, http.StatusUnauthorized)
+		return
+	}
+
+	value, err := h.storage.GetText(req.Context(), name, userID)
 	if err != nil {
 		handleError(res, err, http.StatusNotFound)
 		return
@@ -150,6 +163,7 @@ func (h *ServiceHandlers) GetTextValue(res http.ResponseWriter, req *http.Reques
 	res.Write(resp)
 }
 
+// SetTextValue обрабатывает запросы на обновление значений типа Text
 func (h *ServiceHandlers) SetTextValue(res http.ResponseWriter, req *http.Request) {
 	ctx := req.Context()
 	var request types.TextType
@@ -160,7 +174,13 @@ func (h *ServiceHandlers) SetTextValue(res http.ResponseWriter, req *http.Reques
 	}
 	defer req.Body.Close()
 
-	err := h.storage.SetText(ctx, request)
+	userID, err := h.getUserID(req)
+	if err != nil {
+		handleError(res, err, http.StatusUnauthorized)
+		return
+	}
+
+	err = h.storage.SetText(ctx, request, userID)
 	if err != nil {
 		res.Write([]byte(err.Error()))
 		handleError(res, err, http.StatusBadRequest)
@@ -170,10 +190,17 @@ func (h *ServiceHandlers) SetTextValue(res http.ResponseWriter, req *http.Reques
 	res.WriteHeader(http.StatusOK)
 }
 
+// GetByteValue обрабатывает запросы на получение значений типа Byte
 func (h *ServiceHandlers) GetByteValue(res http.ResponseWriter, req *http.Request) {
 	name := chi.URLParam(req, "name")
 
-	value, err := h.storage.GetByte(req.Context(), name)
+	userID, err := h.getUserID(req)
+	if err != nil {
+		handleError(res, err, http.StatusUnauthorized)
+		return
+	}
+
+	value, err := h.storage.GetByte(req.Context(), name, userID)
 	if err != nil {
 		handleError(res, err, http.StatusNotFound)
 		return
@@ -195,6 +222,7 @@ func (h *ServiceHandlers) GetByteValue(res http.ResponseWriter, req *http.Reques
 	res.Write(resp)
 }
 
+// SetByteValue обрабатывает запросы на обновление значений типа Byte
 func (h *ServiceHandlers) SetByteValue(res http.ResponseWriter, req *http.Request) {
 	ctx := req.Context()
 	var request types.ByteType
@@ -205,7 +233,13 @@ func (h *ServiceHandlers) SetByteValue(res http.ResponseWriter, req *http.Reques
 	}
 	defer req.Body.Close()
 
-	err := h.storage.SetByte(ctx, request)
+	userID, err := h.getUserID(req)
+	if err != nil {
+		handleError(res, err, http.StatusUnauthorized)
+		return
+	}
+
+	err = h.storage.SetByte(ctx, request, userID)
 	if err != nil {
 		res.Write([]byte(err.Error()))
 		handleError(res, err, http.StatusBadRequest)
@@ -215,10 +249,17 @@ func (h *ServiceHandlers) SetByteValue(res http.ResponseWriter, req *http.Reques
 	res.WriteHeader(http.StatusOK)
 }
 
+// GetCardValue обрабатывает запросы на получение значений типа Card
 func (h *ServiceHandlers) GetCardValue(res http.ResponseWriter, req *http.Request) {
 	name := chi.URLParam(req, "name")
 
-	value, err := h.storage.GetCard(req.Context(), name)
+	userID, err := h.getUserID(req)
+	if err != nil {
+		handleError(res, err, http.StatusUnauthorized)
+		return
+	}
+
+	value, err := h.storage.GetCard(req.Context(), name, userID)
 	if err != nil {
 		handleError(res, err, http.StatusNotFound)
 		return
@@ -240,6 +281,7 @@ func (h *ServiceHandlers) GetCardValue(res http.ResponseWriter, req *http.Reques
 	res.Write(resp)
 }
 
+// SetCardValue обрабатывает запросы на обновление значений типа Card
 func (h *ServiceHandlers) SetCardValue(res http.ResponseWriter, req *http.Request) {
 	ctx := req.Context()
 	var request types.CardType
@@ -250,7 +292,13 @@ func (h *ServiceHandlers) SetCardValue(res http.ResponseWriter, req *http.Reques
 	}
 	defer req.Body.Close()
 
-	err := h.storage.SetCard(ctx, request)
+	userID, err := h.getUserID(req)
+	if err != nil {
+		handleError(res, err, http.StatusUnauthorized)
+		return
+	}
+
+	err = h.storage.SetCard(ctx, request, userID)
 	if err != nil {
 		res.Write([]byte(err.Error()))
 		handleError(res, err, http.StatusBadRequest)
@@ -260,6 +308,7 @@ func (h *ServiceHandlers) SetCardValue(res http.ResponseWriter, req *http.Reques
 	res.WriteHeader(http.StatusOK)
 }
 
+// RegisterUser обрабатывает запросы на регистрацию нового пользователя
 func (h *ServiceHandlers) RegisterUser(res http.ResponseWriter, req *http.Request) {
 	var request RegisterReq
 
@@ -292,6 +341,7 @@ func (h *ServiceHandlers) RegisterUser(res http.ResponseWriter, req *http.Reques
 	})
 }
 
+// LoginUser обрабатывает запросы на авторазацию существующего пользователя
 func (h *ServiceHandlers) LoginUser(res http.ResponseWriter, req *http.Request) {
 	var request RegisterReq
 
@@ -323,6 +373,7 @@ func (h *ServiceHandlers) LoginUser(res http.ResponseWriter, req *http.Request) 
 	})
 }
 
+// checkEmpty проверка передаваемых аргументов login, password из командной строки
 func checkEmpty(login, password string) bool {
 	if login == "" || password == "" {
 		log.Error("empty login or password", "login", login, "password", password)
@@ -332,6 +383,7 @@ func checkEmpty(login, password string) bool {
 	return true
 }
 
+// Ping обрабатывает запросы на проверку доступности БД
 func (h *ServiceHandlers) Ping(res http.ResponseWriter, req *http.Request) {
 	err := h.storage.Ping(req.Context())
 	if err != nil {
@@ -342,6 +394,7 @@ func (h *ServiceHandlers) Ping(res http.ResponseWriter, req *http.Request) {
 	res.WriteHeader(http.StatusOK)
 }
 
+// getUserID получение идентификатора пользователя
 func (h *ServiceHandlers) getUserID(req *http.Request) (int, error) {
 	reqToken, err := req.Cookie("Token")
 	if err != nil {

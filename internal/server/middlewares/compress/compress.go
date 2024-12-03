@@ -66,6 +66,7 @@ func (c *compressReader) Close() error {
 	return c.zr.Close()
 }
 
+// GzipMiddleware архивирует и разархивирует данные полученные
 func GzipMiddleware(next http.Handler) http.Handler {
 	logFn := func(res http.ResponseWriter, req *http.Request) {
 		ow := res

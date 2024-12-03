@@ -75,6 +75,8 @@ func (auth *UserAuth) Register(login, password string) error {
 		return fmt.Errorf("not expected status code: %d", resp.StatusCode)
 	}
 
+	println("Register Success")
+
 	return nil
 
 }

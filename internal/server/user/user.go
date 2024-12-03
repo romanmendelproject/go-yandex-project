@@ -32,7 +32,7 @@ func NewUserAuth(db Storage, token JWT) *User {
 	}
 }
 
-// GetHashedPassword - generate hash from password to store secure data
+// GetHashedPassword генерация хэша для пароля
 func (u *User) GetHashedPassword(password string) string {
 	hash := sha256.New()
 
@@ -41,6 +41,7 @@ func (u *User) GetHashedPassword(password string) string {
 	return hex.EncodeToString(hash.Sum(nil))
 }
 
+// LoginUser авторазацию существующего пользователя
 func (u *User) LoginUser(ctx context.Context, username, password string) (string, error) {
 	// generating hash from password
 	hashPassword := u.GetHashedPassword(password)
@@ -61,6 +62,7 @@ func (u *User) LoginUser(ctx context.Context, username, password string) (string
 	return u.token.GenerateToken(userID)
 }
 
+// RegisterUser регистрация существующего пользователя
 func (u *User) RegisterUser(ctx context.Context, username string, password string) (string, error) {
 	// check if login already occupied
 	if err := u.db.CheckLogin(ctx, username); err != nil {
