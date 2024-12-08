@@ -22,7 +22,7 @@ type Config struct {
 }
 
 func ReadConfig() Config {
-	f, err := os.Open("/home/user/practicum/go-yandex-project/configuration.yml")
+	f, err := os.Open("./configuration.yml")
 	if err != nil {
 		log.Error(err)
 		panic(err)
